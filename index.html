@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gramática Cup</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <!-- Biblioteca QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Teko:wght@600;700&family=Inter:wght@400;600;800&display=swap');
+
+        .font-stadium { font-family: 'Teko', sans-serif; }
+        .font-retro { font-family: 'Press Start 2P', cursive; }
+
+        /* Estilização do Campo e Trave */
+        .pitch-bg {
+            background: linear-gradient(0deg, #1e5f20 0%, #2e7d32 50%, #1b5e20 100%);
+            background-size: 100% 40px;
+        }
+
+        .goal-frame {
+            perspective: 600px;
+        }
+
+        .goal-post {
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.4);
+        }
+
+        .net-pattern {
+            background-color: rgba(255, 255, 255, 0.15);
+            background-image: linear-gradient(0deg, rgba(255,255,255,0.4) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px);
+            background-size: 15px 15px;
+        }
+
+        /* Animação da Bola */
+        .ball-transition {
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), width 0.8s, height 0.8s;
+        }
+
+        /* Efeito Glow nos Ângulos */
+        .target-angle {
+            transition: all 0.2s ease;
+        }
+        .target-angle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Animações e Efeitos */
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.95); }
+        }
+        .animate-pulse-fast {
+            animation: pulse-fast 0.6s infinite;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between overflow-x-hidden select-none">
+
+    <!-- CABEÇALHO DO JOGO / PLACAR DA PARTIDA -->
+    <header class="bg-slate-950 border-b border-slate-800 p-2 sm:p-4 sticky top-0 z-40 shadow-2xl">
+        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            
+            <!-- Etapa do Torneio / Modo -->
+            <div class="flex items-center gap-2">
+                <i class="fa-solid font-stadium text-yellow-400 text-3xl fa-trophy"></i>
+                <div>
+                    <span id="stage-badge" class="bg-yellow-500 text-slate-950 text-xs font-black uppercase px-2 py-0.5 rounded-full">
+                        Fase de Grupos (1/3)
+                    </span>
+                    <h1 class="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-wider block">Gramática Cup</h1>
+                </div>
+            </div>
+
+            <!-- PLACAR AO VIVO DA PARTIDA -->
+            <div id="live-scoreboard" class="flex items-center gap-3 bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-2xl shadow-inner">
+                <div class="flex items-center gap-1.5">
+                    <span id="player-flag-score" class="text-xl">🇧🇷</span>
+                    <span id="player-name-score" class="font-bold text-xs sm:text-sm uppercase text-slate-200">P1</span>
+                </div>
+                <div class="font-retro text-yellow-400 text-sm sm:text-lg flex items-center gap-1">
+                    <span id="player-goals">0</span>
+                    <span class="text-slate-600 text-xs font-sans">x</span>
+                    <span id="cpu-goals">3</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span id="cpu-name-score" class="font-bold text-xs sm:text-sm uppercase text-slate-200">P2</span>
+                    <span id="cpu-flag-score" class="text-xl">🇦🇷</span>
+                </div>
+            </div>
+
+            <!-- Indicador de Chutes da Rodada -->
+            <div class="flex items-center gap-2">
+                <button onclick="openQrModal()" title="Compartilhar via QR Code" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-qrcode"></i>
+                    <span class="hidden sm:inline">QR Code</span>
+                </button>
+                <div class="flex items-center gap-1 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                    <span class="text-xs font-bold text-slate-400 mr-1 hidden sm:inline">CHUTES:</span>
+                    <div id="kicks-dots" class="flex items-center gap-1">
+                        <!-- Gerado por JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- TELA 1: SELEÇÃO DE SELEÇÕES E MODO DE JOGO -->
+    <main id="screen-select-team" class="flex-1 flex flex-col items-center justify-center p-4 max-w-4xl mx-auto w-full">
+        <div class="text-center mb-4">
+            <h2 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-500 font-stadium tracking-wide uppercase">
+                Gramática Cup
+            </h2>
+            <p class="text-slate-400 text-sm sm:text-base mt-1">
+                Escolha o modo de jogo, seu tema gramatical e dispute a taça do mundo!
+            </p>
+        </div>
+
+        <!-- SELEÇÃO DO MODO DE PARTICIPANTES (1P TORNEIO OU 2P AMISTOSO) -->
+        <div class="w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-4 mb-4">
+            <h3 class="text-sm font-bold text-yellow-400 uppercase tracking-wider mb-3 text-center">
+                <i class="fa-solid fa-gamepad mr-2"></i>1. Modo de Jogo:
+            </h3>
+            <div class="grid grid-cols-2 gap-3 max-w-md mx-auto">
+                <button onclick="setGameMode('single', this)" id="mode-btn-single" class="mode-btn bg-slate-900 border-2 border-emerald-500 hover:border-yellow-400 rounded-xl p-3 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-trophy text-xl text-emerald-400"></i>
+                    <span>Modo Torneio (1P vs CPU)</span>
+                </button>
+                <button onclick="setGameMode('multi', this)" id="mode-btn-multi" class="mode-btn bg-slate-900 border-2 border-slate-700 hover:border-yellow-400 rounded-xl p-3 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-handshake text-xl text-yellow-400"></i>
+                    <span>Amistoso (2P Passa e Joga)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SELEÇÃO DO CONTEÚDO GRAMATICAL -->
+        <div class="w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-4 mb-4">
+            <h3 class="text-sm font-bold text-yellow-400 uppercase tracking-wider mb-3 text-center">
+                <i class="fa-solid fa-book-open mr-2"></i>2. Conteúdo Gramatical:
+            </h3>
+            <div id="topics-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <button onclick="selectTopic('conjuncao', this)" class="topic-btn bg-slate-900 border-2 border-emerald-500 hover:border-yellow-400 rounded-xl p-2.5 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center">
+                    🔗 Conjunções
+                </button>
+                <button onclick="selectTopic('preposicao', this)" class="topic-btn bg-slate-900 border-2 border-slate-700 hover:border-yellow-400 rounded-xl p-2.5 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center">
+                    📍 Preposições
+                </button>
+                <button onclick="selectTopic('verbos', this)" class="topic-btn bg-slate-900 border-2 border-slate-700 hover:border-yellow-400 rounded-xl p-2.5 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center">
+                    ⏱️ Tempos Verbais
+                </button>
+                <button onclick="selectTopic('crase', this)" class="topic-btn bg-slate-900 border-2 border-slate-700 hover:border-yellow-400 rounded-xl p-2.5 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center">
+                    ` Uso da Crase
+                </button>
+                <button onclick="selectTopic('genero', this)" class="topic-btn bg-slate-900 border-2 border-slate-700 hover:border-yellow-400 rounded-xl p-2.5 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center">
+                    📰 Gênero Textual
+                </button>
+                <button onclick="selectTopic('figura', this)" class="topic-btn bg-slate-900 border-2 border-slate-700 hover:border-yellow-400 rounded-xl p-2.5 text-xs sm:text-sm font-bold text-slate-200 transition-all text-center">
+                    ✨ Figura de Linguagem
+                </button>
+            </div>
+        </div>
+
+        <h3 id="team-selection-title" class="text-sm font-bold text-yellow-400 uppercase tracking-wider mb-2 text-center">
+            <i class="fa-solid fa-flag mr-2"></i>3. Seleção do Jogador 1:
+        </h3>
+        <div id="teams-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 w-full max-h-[25vh] overflow-y-auto p-2 custom-scrollbar">
+            <!-- Gerado via JavaScript -->
+        </div>
+
+        <button id="btn-start-game" disabled class="mt-4 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-slate-950 font-black text-lg rounded-xl shadow-lg transition-all transform hover:scale-105 uppercase tracking-wider">
+            Entrar em Campo <i class="fa-solid fa-play ml-2"></i>
+        </button>
+    </main>
+
+    <!-- TELA 2: CAMPO DE JOGO / PENÂLTI -->
+    <main id="screen-game" class="hidden flex-1 flex flex-col items-center justify-between p-2 sm:p-4 max-w-5xl mx-auto w-full relative overflow-hidden">
+        
+        <!-- PAINEL SUPERIOR: PERGUNTA / FRASE COM LACUNA -->
+        <div class="w-full bg-slate-800/90 backdrop-blur border border-slate-700 rounded-2xl p-3 sm:p-5 shadow-2xl z-20 mb-2 text-center">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                    <span id="turn-badge" class="bg-yellow-500 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        Vez do Jogador 1
+                    </span>
+                    <span id="question-type-badge" class="bg-indigo-600 text-indigo-100 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        Conjunção Adversativa
+                    </span>
+                </div>
+                
+                <!-- Cronômetro 25s -->
+                <div class="flex items-center gap-2 bg-slate-950 px-3 py-1 rounded-full border border-slate-700">
+                    <i class="fa-solid fa-stopwatch text-amber-400 text-sm"></i>
+                    <span id="timer" class="font-retro text-amber-400 text-xs sm:text-sm">25.0s</span>
+                </div>
+            </div>
+
+            <!-- Frase Principal -->
+            <h3 id="sentence-display" class="text-lg sm:text-2xl md:text-3xl font-extrabold text-white tracking-wide leading-relaxed min-h-[3rem] flex items-center justify-center">
+                <!-- Frase injetada por JS -->
+            </h3>
+        </div>
+
+        <!-- ÁREA DO GOL E ESTÁDIO (CAMPO) -->
+        <div class="w-full flex-1 relative flex flex-col justify-end items-center my-2 min-h-[340px] sm:min-h-[400px]">
+            
+            <!-- Estádio / Torcida ao Fundo -->
+            <div class="absolute inset-0 pitch-bg rounded-3xl border-2 border-emerald-700/50 overflow-hidden flex flex-col justify-between">
+                <!-- Arquibancada Superior Simulada -->
+                <div class="h-24 bg-slate-950/80 border-b border-slate-800 flex items-center justify-center overflow-hidden">
+                    <div class="w-full h-full opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]"></div>
+                </div>
+                <!-- Linhas da Grande Área -->
+                <div class="w-full h-40 border-t-2 border-white/20 relative flex justify-center">
+                    <div class="w-2/3 h-full border-x-2 border-b-2 border-white/20"></div>
+                </div>
+            </div>
+
+            <!-- A TRAVE DO GOL -->
+            <div class="relative w-[92%] sm:w-[85%] max-w-3xl h-60 sm:h-72 z-10 flex flex-col">
+                <!-- Travessão Superior -->
+                <div class="w-full h-4 bg-slate-100 rounded-t border-b-2 border-slate-300 goal-post z-20"></div>
+                
+                <!-- Redes e Posts Laterais -->
+                <div class="flex-1 flex justify-between relative net-pattern border-x-4 border-slate-100 goal-post">
+                    
+                    <!-- GOLEIRO -->
+                    <div id="goalkeeper" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 sm:w-20 h-28 sm:h-36 transition-all duration-300 z-10 flex flex-col items-center justify-end">
+                        <!-- Corpo Simplificado do Goleiro -->
+                        <div class="relative w-full h-full flex flex-col items-center">
+                            <!-- Luvas Levantadas -->
+                            <div class="w-full flex justify-between px-1">
+                                <div class="w-4 h-4 bg-yellow-400 rounded-full"></div>
+                                <div class="w-4 h-4 bg-yellow-400 rounded-full"></div>
+                            </div>
+                            <!-- Camisa Goleiro -->
+                            <div class="w-10 sm:w-12 h-14 bg-cyan-400 rounded-t-lg border-2 border-slate-900 flex items-center justify-center font-bold text-slate-900 text-xs">
+                                1
+                            </div>
+                            <!-- Calção -->
+                            <div class="w-10 sm:w-12 h-6 bg-slate-950"></div>
+                            <!-- Meias/Pernas -->
+                            <div class="w-8 h-8 flex justify-between">
+                                <div class="w-3 h-full bg-cyan-400"></div>
+                                <div class="w-3 h-full bg-cyan-400"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ÂNGULOS DO GOL (OPÇÕES DE CHUTE) -->
+                    <button onclick="kickBall(0)" id="option-btn-0" class="target-angle absolute top-2 left-2 w-28 sm:w-40 h-20 sm:h-24 bg-indigo-950/80 hover:bg-indigo-600/90 border-2 border-indigo-400/60 rounded-xl flex items-center justify-center p-2 text-center shadow-lg cursor-pointer z-20">
+                        <span id="option-text-0" class="font-bold text-sm sm:text-xl text-white">mas</span>
+                    </button>
+
+                    <button onclick="kickBall(1)" id="option-btn-1" class="target-angle absolute top-2 right-2 w-28 sm:w-40 h-20 sm:h-24 bg-indigo-950/80 hover:bg-indigo-600/90 border-2 border-indigo-400/60 rounded-xl flex items-center justify-center p-2 text-center shadow-lg cursor-pointer z-20">
+                        <span id="option-text-1" class="font-bold text-sm sm:text-xl text-white">portanto</span>
+                    </button>
+
+                    <button onclick="kickBall(2)" id="option-btn-2" class="target-angle absolute bottom-2 left-2 w-28 sm:w-40 h-20 sm:h-24 bg-indigo-950/80 hover:bg-indigo-600/90 border-2 border-indigo-400/60 rounded-xl flex items-center justify-center p-2 text-center shadow-lg cursor-pointer z-20">
+                        <span id="option-text-2" class="font-bold text-sm sm:text-xl text-white">porque</span>
+                    </button>
+
+                    <button onclick="kickBall(3)" id="option-btn-3" class="target-angle absolute bottom-2 right-2 w-28 sm:w-40 h-20 sm:h-24 bg-indigo-950/80 hover:bg-indigo-600/90 border-2 border-indigo-400/60 rounded-xl flex items-center justify-center p-2 text-center shadow-lg cursor-pointer z-20">
+                        <span id="option-text-3" class="font-bold text-sm sm:text-xl text-white">ou</span>
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- MARCA DA CAL / BOLA -->
+            <div class="relative w-full h-20 flex justify-center items-center z-30 mt-2">
+                <div id="soccer-ball" class="ball-transition w-12 h-12 rounded-full bg-white border-2 border-slate-900 shadow-2xl flex items-center justify-center relative cursor-pointer text-slate-900">
+                    <i class="fa-solid fa-soccer-ball text-2xl"></i>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL DE RESULTADO / FEEDBACK DA RODADA -->
+    <div id="modal-result" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl transform transition-all">
+            <div id="modal-icon" class="text-6xl mb-3">
+                ⚽
+            </div>
+            <h3 id="modal-title" class="text-3xl font-extrabold font-stadium text-yellow-400 uppercase tracking-wide">
+                GOLAAAAÇO!
+            </h3>
+            <p id="modal-message" class="text-slate-300 my-4 text-sm sm:text-base">
+                Você escolheu a conjunção correta e marcou o gol!
+            </p>
+            <div id="modal-explanation" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 mb-6 text-left">
+                <!-- Explicação da regra da conjunção -->
+            </div>
+            <button id="modal-btn-next" onclick="nextRound()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-lg uppercase tracking-wider shadow-lg transition-all">
+                Próximo Chute <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE FIM DE FASE (CLASSIFICADO / ELIMINADO) -->
+    <div id="modal-stage-end" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center shadow-2xl">
+            <div id="stage-end-icon" class="text-7xl mb-4">
+                🏆
+            </div>
+            <h3 id="stage-end-title" class="text-4xl font-extrabold font-stadium text-emerald-400 uppercase tracking-wide">
+                CLASSIFICADO!
+            </h3>
+            <p id="stage-end-subtitle" class="text-lg text-slate-200 mt-2 font-bold">
+                Brasil 4 x 3 Argentina
+            </p>
+            <p id="stage-end-desc" class="text-slate-400 text-sm my-4">
+                Você acertou 4 de 5 chutes e garantiu a vaga na próxima etapa!
+            </p>
+
+            <button id="stage-end-btn" onclick="advanceStage()" class="w-full py-4 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-xl text-xl uppercase tracking-wider shadow-lg transition-all">
+                Ir para as Oitavas de Final <i class="fa-solid fa-trophy ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE QR CODE PARA COMPARTILHAMENTO -->
+    <div id="modal-qrcode" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-extrabold font-stadium text-yellow-400 uppercase tracking-wide mb-1">
+                Compartilhar Jogo
+            </h3>
+            <p class="text-slate-400 text-xs mb-4">
+                Escaneie com a câmera do celular ou cole o link onde você hospedou o jogo:
+            </p>
+            
+            <!-- Container do QR Code -->
+            <div class="bg-white p-4 rounded-2xl inline-block mx-auto mb-4 shadow-inner">
+                <div id="qrcode-container"></div>
+            </div>
+
+            <!-- Campo para personalizar URL caso esteja testando localmente -->
+            <div class="mb-4 text-left">
+                <label class="text-[11px] font-bold text-slate-400 uppercase block mb-1">Link do Jogo:</label>
+                <div class="flex gap-1">
+                    <input type="text" id="qr-url-input" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-yellow-400" placeholder="https://seu-link.com">
+                    <button onclick="updateQrCode()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs">
+                        Gerar
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="closeQrModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-sm uppercase tracking-wider transition-all">
+                Fechar
+            </button>
+        </div>
+    </div>
+
+    <!-- RODAPÉ -->
+    <footer class="bg-slate-950 border-t border-slate-800 py-3 text-center text-xs text-slate-500">
+        Gramática Cup • Aprenda Língua Portuguesa Jogando Futebol
+    </footer>
+
+    <!-- LOGICA DO JOGO (JAVASCRIPT) -->
+    <script>
+        /* -------------------------------------------------------------
+           BANCO DE DADOS E ESTADO GERAL
+        ------------------------------------------------------------- */
+        const TEAMS = [
+            { name: "Brasil", code: "BRA", flag: "🇧🇷" },
+            { name: "Argentina", code: "ARG", flag: "🇦🇷" },
+            { name: "França", code: "FRA", flag: "🇫🇷" },
+            { name: "Alemanha", code: "GER", flag: "🇩🇪" },
+            { name: "Espanha", code: "ESP", flag: "🇪🇸" },
+            { name: "Portugal", code: "POR", flag: "🇵🇹" },
+            { name: "Inglaterra", code: "ENG", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            { name: "Holanda", code: "NED", flag: "🇳🇱" },
+            { name: "Bélgica", code: "BEL", flag: "🇧🇪" },
+            { name: "Uruguai", code: "URU", flag: "🇺🇾" },
+            { name: "Croácia", code: "CRO", flag: "🇭🇷" },
+            { name: "Japão", code: "JPN", flag: "🇯🇵" },
+            { name: "Coreia do Sul", code: "KOR", flag: "🇰🇷" },
+            { name: "Marrocos", code: "MAR", flag: "🇲🇦" },
+            { name: "Senegal", code: "SEN", flag: "🇸🇳" },
+            { name: "México", code: "MEX", flag: "🇲🇽" },
+            { name: "Estados Unidos", code: "USA", flag: "🇺🇸" },
+            { name: "Suíça", code: "SUI", flag: "🇨🇭" },
+            { name: "Dinamarca", code: "DEN", flag: "🇩🇰" },
+            { name: "Sérvia", code: "SRB", flag: "🇷🇸" },
+            { name: "Polônia", code: "POL", flag: "🇵🇱" },
+            { name: "Equador", code: "ECU", flag: "🇪🇨" },
+            { name: "Gana", code: "GHA", flag: "🇬🇭" },
+            { name: "Camarões", code: "CMR", flag: "🇨🇲" },
+            { name: "Canadá", code: "CAN", flag: "🇨🇦" },
+            { name: "Costa Rica", code: "CRC", flag: "🇨🇷" },
+            { name: "Austrália", code: "AUS", flag: "🇦🇺" },
+            { name: "Irã", code: "IRN", flag: "🇮🇷" },
+            { name: "Arábia Saudita", code: "KSA", flag: "🇸🇦" },
+            { name: "Tunísia", code: "TUN", flag: "🇹🇳" },
+            { name: "Catar", code: "QAT", flag: "🇶🇦" },
+            { name: "País de Gales", code: "WAL", flag: "🏴󠁧󠁢󠁷󠁬󠁳󠁿" }
+        ];
+
+        const STAGES = [
+            { name: "Fase de Grupos - Rodada 1", shortName: "Grupos (1/3)" },
+            { name: "Fase de Grupos - Rodada 2", shortName: "Grupos (2/3)" },
+            { name: "Fase de Grupos - Rodada 3", shortName: "Grupos (3/3)" },
+            { name: "Oitavas de Final", shortName: "Oitavas" },
+            { name: "Quartas de Final", shortName: "Quartas" },
+            { name: "Semifinal", shortName: "Semifinal" },
+            { name: "Grande Final", shortName: "Final 🏆" }
+        ];
+
+        const QUESTIONS_DATABASE = {
+            conjuncao: [
+                { sentence: "Treinamos muito para o campeonato, <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> a vitória não veio.", correct: "porém", options: ["porém", "porquanto", "logo", "portanto"], type: "Conjunção Adversativa", explanation: "'Porém' indica oposição entre o treino e o resultado." },
+                { sentence: "A seleção venceu todos os jogos, <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> garantiu a vaga.", correct: "portanto", options: ["portanto", "embora", "contudo", "caso"], type: "Conjunção Conclusiva", explanation: "'Portanto' expressa a conclusão decorrente de vencer." },
+                { sentence: "<span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> estivesse lesionado, o craque entrou em campo.", correct: "Embora", options: ["Embora", "Portanto", "Porque", "Conforme"], type: "Conjunção Concessiva", explanation: "'Embora' indica concessão (ideia oposta que não impede a ação)." },
+                { sentence: "Passaremos de fase <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> vencermos este confronto.", correct: "se", options: ["se", "embora", "mas", "portanto"], type: "Conjunção Condicional", explanation: "'Se' indica a condição necessária para passar de fase." },
+                { sentence: "O atacante correu muito <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> deu a assistência para o gol.", correct: "e", options: ["e", "mas", "portanto", "embora"], type: "Conjunção Aditiva", explanation: "'E' soma duas ações praticadas pelo jogador." },
+                { sentence: "Não apenas defendeu o pênalti, <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> também iniciou o contra-ataque.", correct: "mas", options: ["mas", "porque", "caso", "todavia"], type: "Conjunção Aditiva", explanation: "A expressão 'Não apenas... mas também' é aditiva." },
+                { sentence: "Estude as táticas do adversário, <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> saberá como jogar.", correct: "pois", options: ["pois", "contudo", "embora", "mas"], type: "Conjunção Explicativa", explanation: "'Pois' justifica o motivo da recomendação." },
+                { sentence: "Ou o time ataca com velocidade, <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> fica na defesa sem a bola.", correct: "ou", options: ["ou", "portanto", "todavia", "porque"], type: "Conjunção Alternativa", explanation: "'Ou... ou' indica opções de escolha ou alternância." },
+                { sentence: "Conforme o técnico orientou, os jogadores <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> a marcação alta.", correct: "mantiveram", options: ["mantiveram", "conforme", "logo", "porquanto"], type: "Conjunção Conformativa", explanation: "'Conforme' indica que algo está de acordo com um modelo/plano." },
+                { sentence: "A torcida cantava mais alto <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> o time avançava no ataque.", correct: "à medida que", options: ["à medida que", "à proporção que", "afim de que", "contanto que"], type: "Conjunção Proporcional", explanation: "'À medida que' expressa fatos simultâneos e proporcionais." },
+                { sentence: "O jogador praticou cobranças de falta <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> aprimorasse sua pontaria.", correct: "a fim de que", options: ["a fim de que", "conquanto", "logo", "embora"], type: "Conjunção Final", explanation: "'A fim de que' exprime a finalidade ou objetivo da ação." },
+                { sentence: "O árbitro apitou o fim do jogo <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> a tempestade começou.", correct: "assim que", options: ["assim que", "portanto", "contudo", "porquanto"], type: "Conjunção Temporal", explanation: "'Assim que' exprime uma relação de tempo imediata." }
+            ],
+            preposicao: [
+                { sentence: "Os torcedores caminharam <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> o estádio com alegria.", correct: "até", options: ["até", "sobre", "perante", "sem"], type: "Preposição - Direção", explanation: "'Até' indica o limite do deslocamento." },
+                { sentence: "O técnico conversou <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> os jogadores no vestiário.", correct: "com", options: ["com", "sob", "contra", "desde"], type: "Preposição - Companhia", explanation: "'Com' exprime relação de companhia e interação." },
+                { sentence: "Ele chutou a bola <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> força para vencer o goleiro.", correct: "com", options: ["com", "sem", "trás", "sobre"], type: "Preposição - Modo", explanation: "'Com' indica a forma ou modo como o chute foi aplicado." },
+                { sentence: "Ficamos apreensivos <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> a cobrança de pênalti.", correct: "durante", options: ["durante", "entre", "sob", "após"], type: "Preposição - Tempo", explanation: "'Durante' situa a ação no decorrer de um intervalo de tempo." },
+                { sentence: "O troféu foi esculpido <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> ouro puro e prata reluzente.", correct: "em", options: ["em", "sob", "perante", "atrás"], type: "Preposição - Matéria", explanation: "'Em' indica a matéria da qual o objeto é constituído." },
+                { sentence: "O atleta jogou <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> chuteiras novas na grande final.", correct: "com", options: ["com", "sob", "perante", "contra"], type: "Preposição - Instrumento", explanation: "'Com' indica o instrumento ou recurso utilizado." },
+                { sentence: "A bola passou raspando <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> o travessão da trave.", correct: "por", options: ["por", "sob", "desde", "sem"], type: "Preposição - Lugar", explanation: "'Por' indica a trajetória ou caminho percorrido." },
+                { sentence: "Eles lutaram <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> a vitória do início ao fim.", correct: "pela", options: ["pela", "sobre", "perante", "sob"], type: "Preposição - Causa/Objetivo", explanation: "Contração 'por + a' = pela, expressando motivo ou fim." },
+                { sentence: "O juiz manteve a decisão <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> pressão da torcida adversária.", correct: "sob", options: ["sob", "sobre", "atrás", "sem"], type: "Preposição - Subordinação/Estado", explanation: "'Sob' indica a condição de estar debaixo de influência." }
+            ],
+            verbos: [
+                { sentence: "Se o Brasil <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> concentrado, venceria a partida facilmente.", correct: "jogasse", options: ["jogasse", "jogará", "jogou", "jogava"], type: "Subjuntivo - Imperfeito", explanation: "'Jogasse' expressa uma hipótese incerta no passado." },
+                { sentence: "Amanhã, a seleção <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> em busca do troféu da Copa.", correct: "entrará", options: ["entrará", "entrou", "entrava", "entrara"], type: "Indicativo - Futuro do Presente", explanation: "'Entrará' indica uma ação que acontecerá no futuro." },
+                { sentence: "Quando o juiz apitou, o atacante já <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> o gol da vitória.", correct: "marcara", options: ["marcara", "marcará", "marcaria", "marque"], type: "Pretérito Mais-que-perfeito", explanation: "'Marcara' indica uma ação no passado anterior a outra ação passada." },
+                { sentence: "Nós <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> o título se tivéssemos aproveitado as oportunidades.", correct: "teríamos conquistado", options: ["teríamos conquistado", "conquistávamos", "conquistaremos", "conquistem"], type: "Futuro do Pretérito Composto", explanation: "Expressa um fato que ocorreria sob determinada condição." },
+                { sentence: "Tomara que a nossa seleção <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> um ótimo desempenho hoje!", correct: "tenha", options: ["tenha", "terá", "tinha", "tivesse"], type: "Presente do Subjuntivo", explanation: "'Tenha' expressa desejo ou certeza relativa ao momento presente/futuro." },
+                { sentence: "Enquanto os jogadores aqueciam, a torcida <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> sem parar.", correct: "cantava", options: ["cantava", "cantou", "cantarás", "cantes"], type: "Pretérito Imperfeito", explanation: "'Cantava' indica uma ação contínua ou duradoura no passado." },
+                { sentence: "Quando nós <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> a partida, celebraremos com toda a nação.", correct: "vencermos", options: ["vencermos", "vencemos", "venceríamos", "vencêssemos"], type: "Futuro do Subjuntivo", explanation: "'Vencermos' expressa um fato futuro possível." }
+            ],
+            crase: [
+                { sentence: "O capitão dedicou a vitória <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> torcida brasileira.", correct: "à", options: ["à", "a", "há", "às"], type: "Uso da Crase", explanation: "Dedicou 'a' + 'a' torcida = à." },
+                { sentence: "Ele começou <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> treinar pênaltis logo cedo.", correct: "a", options: ["a", "à", "há", "às"], type: "Uso da Crase - Regra de Verbo", explanation: "Não ocorre crase antes de verbos." },
+                { sentence: "Os ingressos foram vendidos <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> prazo pelo site oficial.", correct: "a", options: ["a", "à", "há", "às"], type: "Uso da Crase - Substantivo Masculino", explanation: "Não ocorre crase antes de palavras masculinas." },
+                { sentence: "Fomos <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> França acompanhar os jogos decisivos.", correct: "à", options: ["à", "a", "há", "da"], type: "Crase - Nomes de Lugares", explanation: "Quem vai 'à' França, volta 'da' França: usa-se crase!" },
+                { sentence: "Chegamos ao estádio <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> duas horas da tarde.", correct: "às", options: ["às", "as", "há", "a"], type: "Crase - Horas Exatas", explanation: "Usa-se crase obrigatoriamente antes de indicação de horas exatas." },
+                { sentence: "O jogador fez um passe <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> Pelé (à moda de Pelé).", correct: "à", options: ["à", "a", "ao", "há"], type: "Crase - Expressão Implícita", explanation: "Subentende-se a expressão 'à moda de'." },
+                { sentence: "O técnico entregou o relatório <span class='text-yellow-400 underline decoration-dashed underline-offset-8 mx-2 px-3 py-0.5 bg-slate-900 rounded'>___</span> diretoria do clube.", correct: "à", options: ["à", "a", "há", "ao"], type: "Crase - Regência Verbal", explanation: "Entregou 'a' + 'a' diretoria = à diretoria." }
+            ],
+            genero: [
+                { sentence: "Qual gênero apresenta versos, rimas e forte carga de subjetividade?", correct: "Poema", options: ["Poema", "Notícia", "Receita", "Artigo"], type: "Gênero Textual", explanation: "Poema é estruturado em versos, estrofes e expressa sentimentos." },
+                { sentence: "Um texto que relata fatos reais recentes com objetividade é uma...", correct: "Notícia", options: ["Notícia", "Fábula", "Crônica", "Novela"], type: "Gênero Textual", explanation: "A notícia busca informar um fato real de modo imparcial." },
+                { sentence: "Qual gênero ensina passo a passo como preparar um alimento?", correct: "Receita", options: ["Receita", "Conto", "Carta", "Verbete"], type: "Gênero Textual", explanation: "A receita é um gênero instrucional com lista de ingredientes e preparo." },
+                { sentence: "Texto narrativo curto com personagens animais que traz uma lição moral:", correct: "Fábula", options: ["Fábula", "Crônica", "Biografia", "Diário"], type: "Gênero Textual", explanation: "A fábula utiliza animais personificados e termina com uma moral." },
+                { sentence: "Texto argumentativo focado em defender uma tese com dados e provas:", correct: "Artigo de Opinião", options: ["Artigo de Opinião", "Poema", "Conto", "Entrevista"], type: "Gênero Textual", explanation: "O artigo de opinião apresenta a postura fundamentada do autor." },
+                { sentence: "Narrativa breve do cotidiano registrada sob um olhar pessoal e reflexivo:", correct: "Crônica", options: ["Crônica", "Reportagem", "Manual", "Dicionário"], type: "Gênero Textual", explanation: "A crônica aborda episódios diários de forma poética ou crítica." }
+            ],
+            figura: [
+                { sentence: "O atacante é um raio em campo! Que figura de linguagem temos?", correct: "Metáfora", options: ["Metáfora", "Metonímia", "Pleonasmo", "Hipérbole"], type: "Figura de Linguagem", explanation: "Metáfora é uma comparação direta sem o termo comparativo 'como'." },
+                { sentence: "Choveu um oceano de lágrimas na eliminação. Que figura temos?", correct: "Hipérbole", options: ["Hipérbole", "Ironia", "Eufemismo", "Antítese"], type: "Figura de Linguagem", explanation: "Hipérbole representa um exagero intencional para dar ênfase." },
+                { sentence: "O jogador partiu desta para a melhor. Que figura de linguagem é essa?", correct: "Eufemismo", options: ["Eufemismo", "Hipérbole", "Ironia", "Personificação"], type: "Figura de Linguagem", explanation: "Eufemismo suaviza uma expressão forte ou desagradável." },
+                { sentence: "O gramado sorria para os campeões sob o sol da tarde. Figura usada:", correct: "Personificação", options: ["Personificação", "Metonímia", "Catacrese", "Sinestesia"], type: "Figura de Linguagem", explanation: "Personificação atribui características humanas a seres inanimados." },
+                { sentence: "Li Machado de Assis durante toda a concentração. Qual a figura?", correct: "Metonímia", options: ["Metonímia", "Metáfora", "Elipse", "Paradoxo"], type: "Figura de Linguagem", explanation: "Metonímia troca a causa pelo efeito (o autor pela obra)." },
+                { sentence: "O silêncio ensurdecedor tomou conta da torcida após o gol adversário.", correct: "Paradoxo", options: ["Paradoxo", "Antítese", "Pleonasmo", "Ironia"], type: "Figura de Linguagem", explanation: "Paradoxo reúne ideias opostas que se contradizem logicamente." }
+            ]
+        };
+
+        /* ESTADO DO JOGO */
+        let gameMode = "single"; // 'single' ou 'multi'
+        let playerTeam = null;
+        let cpuTeam = null; // No multi, é o Player 2
+        let currentTopic = "conjuncao";
+        let currentStageIndex = 0;
+        
+        let playerGoals = 0;
+        let cpuGoals = 3;
+        let kicksTaken = 0;
+        let isGoldenGoalRound = false;
+
+        let activeTurn = 1; // 1 = Jogador 1, 2 = Jogador 2 (apenas no multi)
+        let player1GoalsMulti = 0;
+        let player2GoalsMulti = 0;
+
+        let currentQuestion = null;
+        let timerInterval = null;
+        let timeLeft = 25.0;
+        let canKick = false;
+
+        // Fila de perguntas para não repetir na mesma partida
+        let availableQuestionsPool = [];
+
+        window.onload = () => {
+            renderTeamSelection();
+        };
+
+        function setGameMode(mode, btnElement) {
+            gameMode = mode;
+            document.querySelectorAll(".mode-btn").forEach(b => {
+                b.classList.remove("border-emerald-500");
+                b.classList.add("border-slate-700");
+            });
+            btnElement.classList.remove("border-slate-700");
+            btnElement.classList.add("border-emerald-500");
+
+            playerTeam = null;
+            cpuTeam = null;
+            
+            const titleEl = document.getElementById("team-selection-title");
+            if (mode === 'multi') {
+                titleEl.innerHTML = `<i class="fa-solid fa-flag mr-2"></i>3. Seleção do Jogador 1 (Clique para escolher):`;
+            } else {
+                titleEl.innerHTML = `<i class="fa-solid fa-flag mr-2"></i>3. Escolha sua Seleção:`;
+            }
+            renderTeamSelection();
+        }
+
+        function selectTopic(topicKey, btnElement) {
+            currentTopic = topicKey;
+            availableQuestionsPool = []; // Reseta o pool quando troca o tema
+            document.querySelectorAll(".topic-btn").forEach(b => {
+                b.classList.remove("border-emerald-500");
+                b.classList.add("border-slate-700");
+            });
+            btnElement.classList.remove("border-slate-700");
+            btnElement.classList.add("border-emerald-500");
+        }
+
+        function renderTeamSelection() {
+            const grid = document.getElementById("teams-grid");
+            grid.innerHTML = "";
+
+            TEAMS.forEach((team) => {
+                const card = document.createElement("button");
+                card.className = "team-card bg-slate-800 hover:bg-slate-700 border-2 border-slate-700 rounded-xl p-2.5 flex flex-col items-center justify-center gap-1 transition-all transform hover:scale-105";
+                card.onclick = () => selectPlayerTeam(team, card);
+                card.innerHTML = `
+                    <span class="text-2xl sm:text-3xl">${team.flag}</span>
+                    <span class="font-bold text-xs sm:text-sm text-slate-200">${team.name}</span>
+                `;
+                grid.appendChild(card);
+            });
+
+            document.getElementById("btn-start-game").disabled = true;
+        }
+
+        function selectPlayerTeam(team, cardElement) {
+            if (gameMode === 'single') {
+                document.querySelectorAll(".team-card").forEach(c => c.classList.replace("border-yellow-400", "border-slate-700"));
+                cardElement.classList.replace("border-slate-700", "border-yellow-400");
+                playerTeam = team;
+                const startBtn = document.getElementById("btn-start-game");
+                startBtn.disabled = false;
+                startBtn.onclick = startGame;
+            } else {
+                // Modo Multiplayer: Seleciona Jogador 1 e depois Jogador 2
+                if (!playerTeam) {
+                    playerTeam = team;
+                    cardElement.classList.replace("border-slate-700", "border-yellow-400");
+                    document.getElementById("team-selection-title").innerHTML = `<i class="fa-solid fa-flag mr-2"></i>3. Agora escolha a Seleção do Jogador 2:`;
+                } else if (!cpuTeam && team.code !== playerTeam.code) {
+                    cpuTeam = team;
+                    cardElement.classList.replace("border-slate-700", "border-cyan-400");
+                    const startBtn = document.getElementById("btn-start-game");
+                    startBtn.disabled = false;
+                    startBtn.onclick = startGame;
+                }
+            }
+        }
+
+        function startGame() {
+            if (!playerTeam) return;
+            if (gameMode === 'multi' && !cpuTeam) return;
+
+            // Reinicia o banco de perguntas sem repetições
+            availableQuestionsPool = [];
+
+            document.getElementById("screen-select-team").classList.add("hidden");
+            document.getElementById("screen-game").classList.remove("hidden");
+
+            if (gameMode === 'multi') {
+                startMultiplayerMatch();
+            } else {
+                currentStageIndex = 0;
+                startStage();
+            }
+        }
+
+        function startMultiplayerMatch() {
+            activeTurn = 1;
+            player1GoalsMulti = 0;
+            player2GoalsMulti = 0;
+            kicksTaken = 0;
+
+            document.getElementById("stage-badge").innerText = "AMISTOSO 2P (PARTIDA ÚNICA)";
+            document.getElementById("player-flag-score").innerText = playerTeam.flag;
+            document.getElementById("player-name-score").innerText = playerTeam.code;
+            document.getElementById("player-goals").innerText = player1GoalsMulti;
+
+            document.getElementById("cpu-flag-score").innerText = cpuTeam.flag;
+            document.getElementById("cpu-name-score").innerText = cpuTeam.code;
+            document.getElementById("cpu-goals").innerText = player2GoalsMulti;
+
+            renderKicksDots();
+            setTimeout(() => { loadNextQuestion(); }, 50);
+        }
+
+        function startStage() {
+            const availableCPUs = TEAMS.filter(t => t.code !== playerTeam.code);
+            cpuTeam = availableCPUs[Math.floor(Math.random() * availableCPUs.length)];
+
+            playerGoals = 0;
+            cpuGoals = 3;
+            kicksTaken = 0;
+            isGoldenGoalRound = false;
+
+            document.getElementById("stage-badge").innerText = STAGES[currentStageIndex].shortName;
+            document.getElementById("turn-badge").innerText = "VEZ DO JOGADOR";
+            document.getElementById("player-flag-score").innerText = playerTeam.flag;
+            document.getElementById("player-name-score").innerText = playerTeam.code;
+            document.getElementById("player-goals").innerText = playerGoals;
+
+            document.getElementById("cpu-flag-score").innerText = cpuTeam.flag;
+            document.getElementById("cpu-name-score").innerText = cpuTeam.code;
+            document.getElementById("cpu-goals").innerText = cpuGoals;
+
+            renderKicksDots();
+            setTimeout(() => { loadNextQuestion(); }, 50);
+        }
+
+        function renderKicksDots() {
+            const container = document.getElementById("kicks-dots");
+            container.innerHTML = "";
+
+            if (gameMode === 'single' && isGoldenGoalRound) {
+                container.innerHTML = `<span class="text-xs font-bold text-yellow-400 animate-pulse">MORTE SÚDITA (GOL DE OURO)</span>`;
+                return;
+            }
+
+            const totalKicks = gameMode === 'multi' ? 10 : 5;
+            for (let i = 0; i < totalKicks; i++) {
+                const dot = document.createElement("div");
+                if (i < kicksTaken) {
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-slate-600 border border-slate-500";
+                } else {
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-200 animate-pulse";
+                }
+                container.appendChild(dot);
+            }
+        }
+
+        function loadNextQuestion() {
+            resetBallAndGoalkeeper();
+
+            if (gameMode === 'multi') {
+                const pName = activeTurn === 1 ? playerTeam.name : cpuTeam.name;
+                document.getElementById("turn-badge").innerText = `VEZ DE: ${pName} (P${activeTurn})`;
+                document.getElementById("turn-badge").className = activeTurn === 1 
+                    ? "bg-yellow-500 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider"
+                    : "bg-cyan-400 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider";
+            }
+
+            // Garante que haja perguntas disponíveis sem repetição
+            if (!availableQuestionsPool || availableQuestionsPool.length === 0) {
+                const baseList = QUESTIONS_DATABASE[currentTopic] || QUESTIONS_DATABASE.conjuncao;
+                availableQuestionsPool = [...baseList];
+            }
+
+            // Sorteia e remove a pergunta sorteada do pool
+            const qIndex = Math.floor(Math.random() * availableQuestionsPool.length);
+            currentQuestion = availableQuestionsPool.splice(qIndex, 1)[0];
+
+            document.getElementById("question-type-badge").innerText = currentQuestion.type;
+            document.getElementById("sentence-display").innerHTML = currentQuestion.sentence;
+
+            const shuffledOptions = [...currentQuestion.options].sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < 4; i++) {
+                const btnOption = document.getElementById(`option-btn-${i}`);
+                const btnText = document.getElementById(`option-text-${i}`);
+                if (btnOption && btnText) {
+                    btnText.innerText = shuffledOptions[i];
+                    btnOption.dataset.value = shuffledOptions[i];
+                    btnOption.disabled = false;
+                }
+            }
+
+            canKick = true;
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 25.0;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    clearInterval(timerInterval);
+                    updateTimerDisplay();
+                    timeOutKick();
+                } else {
+                    updateTimerDisplay();
+                }
+            }, 100);
+        }
+
+        function updateTimerDisplay() {
+            const timerEl = document.getElementById("timer");
+            timerEl.innerText = timeLeft.toFixed(1) + "s";
+            if (timeLeft <= 5.0) {
+                timerEl.classList.add("text-red-500", "animate-pulse-fast");
+                timerEl.classList.remove("text-amber-400");
+            } else {
+                timerEl.classList.remove("text-red-500", "animate-pulse-fast");
+                timerEl.classList.add("text-amber-400");
+            }
+        }
+
+        function resetBallAndGoalkeeper() {
+            document.getElementById("soccer-ball").style.transform = "translate(0, 0) scale(1)";
+            document.getElementById("goalkeeper").style.transform = "translateX(-50%)";
+        }
+
+        function kickBall(cornerIndex) {
+            if (!canKick) return;
+            canKick = false;
+            clearInterval(timerInterval);
+
+            const selectedBtn = document.getElementById(`option-btn-${cornerIndex}`);
+            const selectedAnswer = selectedBtn.dataset.value;
+            const isCorrect = selectedAnswer === currentQuestion.correct;
+
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`option-btn-${i}`).disabled = true;
+            }
+
+            const positions = [
+                { x: -140, y: -190 },
+                { x: 140, y: -190 },
+                { x: -140, y: -100 },
+                { x: 140, y: -100 }
+            ];
+
+            const targetPos = positions[cornerIndex];
+            const ball = document.getElementById("soccer-ball");
+            ball.style.transform = `translate(${targetPos.x}px, ${targetPos.y}px) scale(0.65)`;
+
+            const gk = document.getElementById("goalkeeper");
+            if (isCorrect) {
+                const wrongSideX = targetPos.x > 0 ? -100 : 100;
+                gk.style.transform = `translateX(calc(-50% + ${wrongSideX}px)) translateY(-20px) rotate(${wrongSideX > 0 ? 30 : -30}deg)`;
+            } else {
+                gk.style.transform = `translateX(calc(-50% + ${targetPos.x * 0.8}px)) translateY(-30px) rotate(${targetPos.x > 0 ? 45 : -45}deg)`;
+            }
+
+            setTimeout(() => {
+                processKickResult(isCorrect, selectedAnswer);
+            }, 850);
+        }
+
+        function timeOutKick() {
+            if (!canKick) return;
+            canKick = false;
+            processKickResult(false, null, true);
+        }
+
+        function processKickResult(isCorrect, selectedAnswer, isTimeOut = false) {
+            kicksTaken++;
+            
+            if (gameMode === 'multi') {
+                if (isCorrect) {
+                    if (activeTurn === 1) {
+                        player1GoalsMulti++;
+                        document.getElementById("player-goals").innerText = player1GoalsMulti;
+                    } else {
+                        player2GoalsMulti++;
+                        document.getElementById("cpu-goals").innerText = player2GoalsMulti;
+                    }
+                }
+                const kickerName = activeTurn === 1 ? playerTeam.name : cpuTeam.name;
+                if (isCorrect) {
+                    showModalResult(true, `GOL DA ${kickerName.toUpperCase()}!`, `Resposta correta: <b>"${currentQuestion.correct}"</b>.`, currentQuestion.explanation);
+                    confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+                } else {
+                    const title = isTimeOut ? "TEMPO ESGOTADO!" : "DEFENDEU O GOLEIRO!";
+                    showModalResult(false, title, `${kickerName} errou a cobrança! A resposta era <b>"${currentQuestion.correct}"</b>.`, currentQuestion.explanation);
+                }
+            } else {
+                // MODO SINGLE PLAYER
+                if (isCorrect) {
+                    playerGoals++;
+                    document.getElementById("player-goals").innerText = playerGoals;
+                    showModalResult(true, "GOLAAAAÇO!", `Você acertou! A resposta <b>"${currentQuestion.correct}"</b> se encaixa perfeitamente.`, currentQuestion.explanation);
+                    confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+                } else {
+                    const title = isTimeOut ? "TEMPO ESGOTADO!" : "DEFENDEU O GOLEIRO!";
+                    const msg = isTimeOut 
+                        ? `O tempo acabou! A resposta correta era <b>"${currentQuestion.correct}"</b>.`
+                        : `Você chutou em <b>"${selectedAnswer}"</b>, mas a correta era <b>"${currentQuestion.correct}"</b>.`;
+
+                    showModalResult(false, title, msg, currentQuestion.explanation);
+                }
+            }
+
+            renderKicksDots();
+        }
+
+        function showModalResult(isGoal, title, message, explanation) {
+            const modal = document.getElementById("modal-result");
+            const icon = document.getElementById("modal-icon");
+            const titleEl = document.getElementById("modal-title");
+            const msgEl = document.getElementById("modal-message");
+            const expEl = document.getElementById("modal-explanation");
+
+            icon.innerText = isGoal ? "⚽🔥" : "🧤❌";
+            titleEl.innerText = title;
+            titleEl.className = `text-3xl font-extrabold font-stadium uppercase tracking-wide ${isGoal ? 'text-emerald-400' : 'text-red-500'}`;
+            msgEl.innerHTML = message;
+            expEl.innerHTML = `<strong>Regra Gramatical:</strong> ${explanation}`;
+
+            modal.classList.remove("hidden");
+        }
+
+        function nextRound() {
+            document.getElementById("modal-result").classList.add("hidden");
+
+            if (gameMode === 'multi') {
+                if (kicksTaken >= 10) {
+                    // Fim das 5 cobranças para cada um (10 no total)
+                    finishMultiplayerMatch();
+                } else {
+                    // Alterna o turno dos jogadores
+                    activeTurn = activeTurn === 1 ? 2 : 1;
+                    loadNextQuestion();
+                }
+                return;
+            }
+
+            // MODO SINGLE PLAYER CONTINUAÇÃO
+            if (isGoldenGoalRound) {
+                if (kicksTaken === 5) {
+                    loadNextQuestion();
+                    return;
+                }
+                if (playerGoals > 3) {
+                    finishStage(true);
+                } else {
+                    finishStage(false);
+                }
+                return;
+            }
+
+            if (kicksTaken >= 5) {
+                if (playerGoals >= 3) {
+                    if (playerGoals === 3) {
+                        startGoldenGoalMode();
+                    } else {
+                        finishStage(true);
+                    }
+                } else {
+                    finishStage(false);
+                }
+            } else {
+                loadNextQuestion();
+            }
+        }
+
+        function finishMultiplayerMatch() {
+            const modal = document.getElementById("modal-stage-end");
+            const icon = document.getElementById("stage-end-icon");
+            const title = document.getElementById("stage-end-title");
+            const sub = document.getElementById("stage-end-subtitle");
+            const desc = document.getElementById("stage-end-desc");
+            const btn = document.getElementById("stage-end-btn");
+
+            modal.classList.remove("hidden");
+
+            sub.innerText = `${playerTeam.name} ${player1GoalsMulti} x ${player2GoalsMulti} ${cpuTeam.name}`;
+
+            if (player1GoalsMulti > player2GoalsMulti) {
+                icon.innerText = "🏆🎉";
+                title.innerText = `VITÓRIA DA ${playerTeam.name.toUpperCase()}!`;
+                title.className = "text-4xl font-extrabold font-stadium text-yellow-400 uppercase tracking-wide";
+                desc.innerText = `O Jogador 1 (${playerTeam.name}) venceu o Amistoso com ${player1GoalsMulti} gol(s)!`;
+            } else if (player2GoalsMulti > player1GoalsMulti) {
+                icon.innerText = "🏆🎉";
+                title.innerText = `VITÓRIA DA ${cpuTeam.name.toUpperCase()}!`;
+                title.className = "text-4xl font-extrabold font-stadium text-cyan-400 uppercase tracking-wide";
+                desc.innerText = `O Jogador 2 (${cpuTeam.name}) venceu o Amistoso com ${player2GoalsMulti} gol(s)!`;
+            } else {
+                icon.innerText = "🤝⚽";
+                title.innerText = "EMPATE NO AMISTOSO!";
+                title.className = "text-4xl font-extrabold font-stadium text-slate-200 uppercase tracking-wide";
+                desc.innerText = `Um jogaço equilibrado! Ambos marcaram ${player1GoalsMulti} gol(s).`;
+            }
+
+            btn.innerHTML = `Novo Amistoso <i class="fa-solid fa-rotate-right ml-2"></i>`;
+            btn.onclick = () => location.reload();
+
+            confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
+        }
+
+        function startGoldenGoalMode() {
+            isGoldenGoalRound = true;
+            renderKicksDots();
+            showModalResult(
+                true,
+                "EMPATE! 3 x 3",
+                "O jogo empatou em 3 x 3! Você ganhou a chance do <b>GOL DE OURO</b>. Se acertar este próximo chute, você se classifica. Se errar, será eliminado!",
+                "Foco total! Você tem 25 segundos para bater o pênalti decisivo."
+            );
+        }
+
+        function finishStage(isQualified) {
+            const modal = document.getElementById("modal-stage-end");
+            const icon = document.getElementById("stage-end-icon");
+            const title = document.getElementById("stage-end-title");
+            const sub = document.getElementById("stage-end-subtitle");
+            const desc = document.getElementById("stage-end-desc");
+            const btn = document.getElementById("stage-end-btn");
+
+            modal.classList.remove("hidden");
+
+            if (isQualified) {
+                if (currentStageIndex === STAGES.length - 1) {
+                    icon.innerText = "🏆🎉";
+                    title.innerText = "É CAMPEÃO DO MUNDO!";
+                    title.className = "text-4xl font-extrabold font-stadium text-yellow-400 uppercase tracking-wide";
+                    sub.innerText = `${playerTeam.name} ${playerGoals} x 3 ${cpuTeam.name}`;
+                    desc.innerText = "Parabéns! Você levantou o troféu da Gramática Cup!";
+                    
+                    btn.innerHTML = `Jogar Novamente <i class="fa-solid fa-rotate-right ml-2"></i>`;
+                    btn.onclick = () => location.reload();
+
+                    confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } });
+                } else {
+                    icon.innerText = "👏⚽";
+                    title.innerText = "CLASSIFICADO!";
+                    title.className = "text-4xl font-extrabold font-stadium text-emerald-400 uppercase tracking-wide";
+                    sub.innerText = `${playerTeam.name} ${playerGoals} x 3 ${cpuTeam.name}`;
+                    desc.innerText = `Você atingiu o objetivo com ${playerGoals} gols e avançou de fase!`;
+                    
+                    const nextStageName = STAGES[currentStageIndex + 1].name;
+                    btn.innerHTML = `Avançar para: ${nextStageName} <i class="fa-solid fa-arrow-right ml-2"></i>`;
+                    btn.onclick = advanceStage;
+                }
+            } else {
+                icon.innerText = "💔😭";
+                title.innerText = "SELEÇÃO ELIMINADA!";
+                title.className = "text-4xl font-extrabold font-stadium text-red-500 uppercase tracking-wide";
+                sub.innerText = `${playerTeam.name} ${playerGoals} x 3 ${cpuTeam.name}`;
+                desc.innerText = `Você marcou apenas ${playerGoals} gol(s). Era necessário pelo menos 3 gols.`;
+                
+                btn.innerHTML = `Tentar Novamente <i class="fa-solid fa-rotate-right ml-2"></i>`;
+                btn.onclick = () => location.reload();
+            }
+        }
+
+        function advanceStage() {
+            document.getElementById("modal-stage-end").classList.add("hidden");
+            currentStageIndex++;
+            startStage();
+        }
+
+        /* -------------------------------------------------------------
+           LÓGICA DO GERADOR DE QR CODE
+        ------------------------------------------------------------- */
+        let qrCodeInstance = null;
+
+        function openQrModal() {
+            const modal = document.getElementById("modal-qrcode");
+            const input = document.getElementById("qr-url-input");
+            
+            // Preenche com a URL atual caso ainda não tenha sido editada
+            if (!input.value) {
+                input.value = window.location.href.startsWith("http") 
+                    ? window.location.href 
+                    : "https://gramaticacup.exemplo.com";
+            }
+
+            modal.classList.remove("hidden");
+            updateQrCode();
+        }
+
+        function closeQrModal() {
+            document.getElementById("modal-qrcode").classList.add("hidden");
+        }
+
+        function updateQrCode() {
+            const container = document.getElementById("qrcode-container");
+            const url = document.getElementById("qr-url-input").value.trim() || "https://gramaticacup.exemplo.com";
+            
+            container.innerHTML = "";
+            qrCodeInstance = new QRCode(container, {
+                text: url,
+                width: 180,
+                height: 180,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+    </script>
+</body>
+</html>
